@@ -26,7 +26,9 @@ impl Polynomial {
 impl Solution for Polynomial {
     type Fitness = f64;
 
-    fn generate() -> Self {
+    type GenerateArgs = ();
+
+    fn generate(_args: Self::GenerateArgs) -> Self {
         // create a random array of four f64s between 0 and 1
         // these represent the coefficients a, b, c, d in a + bx + cx² + dx³
         Polynomial(Array1::random_using(
@@ -72,12 +74,14 @@ fn main() {
         hof::BestN::new(1),
         // completely reset the algorithm every 25000 generations
         25000,
+        (),
     );
 
     let start = std::time::Instant::now();
     // run the algorithm until we have a polynomial that's accurate to 3 decimal places on average
     let log = evo.run_until(
-        |gen| -gen.hall_of_fame[0].evaluate() < 0.001
+        |gen| -gen.hall_of_fame[0].evaluate() < 0.001,
+        (),
     );
     let time = start.elapsed();
 

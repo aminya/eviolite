@@ -299,7 +299,7 @@ mod tests {
 
     #[test]
     fn test_best_order_sort_1d() {
-        let pop = Vec::n_from_function(100, One::generate);
+        let pop = Vec::n_from_function(100, || One::generate(()));
 
         let rankings = rank_nondominated(&pop).ranks;
         let mut ranked: Vec<_> = rankings.into_iter().zip(pop.into_iter()).collect();
@@ -315,7 +315,7 @@ mod tests {
 
     #[test]
     fn test_best_order_sort_3d() {
-        let pop = Vec::n_from_function(1000, Bar::generate);
+        let pop = Vec::n_from_function(1000, || Bar::generate(()));
 
         let rankings = rank_nondominated(&pop).ranks;
         let mut ranked: Vec<_> = rankings.into_iter().zip(pop.into_iter()).collect();

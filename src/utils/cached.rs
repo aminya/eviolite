@@ -19,9 +19,11 @@ where
 {
     type Fitness = T::Fitness;
 
-    fn generate() -> Self {
+    type GenerateArgs = T::GenerateArgs;
+
+    fn generate(args: Self::GenerateArgs) -> Self {
         Cached {
-            inner: T::generate(),
+            inner: T::generate(args),
             fitness: UnsafeCell::new(None),
         }
     }
