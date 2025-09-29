@@ -11,9 +11,10 @@ fn main() {
         alg::MuPlusLambda::new(POPSIZE, POPSIZE, 0.5, 0.1, select::Tournament::new(10)),
         hof::BestN::new(1),
         RESET_INTERVAL,
+        (),
     );
 
-    let log = evo.run_for(NGENS);
+    let log = evo.run_for(NGENS, ());
 
     let (best, _) = log.hall_of_fame[0].clone().into_inner();
 
@@ -25,7 +26,9 @@ struct Fraction(u64, u64);
 
 impl Solution for Fraction {
     type Fitness = f64;
-    fn generate() -> Self {
+    type GenerateArgs = ();
+
+    fn generate(_args: Self::GenerateArgs) -> Self {
         let mut rng = thread_rng();
         Fraction(rng.gen_range(1..100000000), rng.gen_range(1..100000000))
     }

@@ -11,8 +11,9 @@ pub struct One(pub f64);
 
 impl Solution for One {
     type Fitness = MultiObjective<1>;
+    type GenerateArgs = ();
 
-    fn generate() -> Self {
+    fn generate(_args: Self::GenerateArgs) -> Self {
         One(random())
     }
 
@@ -33,8 +34,9 @@ pub struct Foo(pub [f64; 2]);
 
 impl Solution for Foo {
     type Fitness = MultiObjective<2>;
+    type GenerateArgs = ();
 
-    fn generate() -> Self {
+    fn generate(_args: Self::GenerateArgs) -> Self {
         let mut rng = thread_rng();
         Foo([rng.gen(), rng.gen()])
     }
@@ -56,8 +58,9 @@ pub struct Bar(pub [f64; 3]);
 
 impl Solution for Bar {
     type Fitness = MultiObjective<3>;
+    type GenerateArgs = ();
 
-    fn generate() -> Self {
+    fn generate(_args: Self::GenerateArgs) -> Self {
         let mut rng = thread_rng();
         Bar([-rng.gen::<f64>(), -rng.gen::<f64>(), -rng.gen::<f64>()])
     }

@@ -60,8 +60,13 @@ pub trait Solution: Clone + Sync {
     /// [`MultiObjective`]: ./fitness/struct.MultiObjective.html
     type Fitness: Copy;
 
+    /// The type of the values passed to [`generate`].
+    /// This can be used to store the constant state shared among the whole population.
+    /// For example, `type GenerateArgs = Arc<State>`.
+    type GenerateArgs: Clone;
+
     /// Randomly generate a new solution.
-    fn generate() -> Self;
+    fn generate(args: Self::GenerateArgs) -> Self;
 
     /// Evaluate the fitness of the solution.
     ///
@@ -112,9 +117,9 @@ where
     Stat: GenerationStats<T>,
 {
     /// Create a new [`Evolution`] with the specified algorithm and hall of fame.
-    pub fn new(algorithm: Alg, hall_of_fame: Hof) -> Self {
+    pub fn new(algorithm: Alg, hall_of_fame: Hof, generate_args: T::GenerateArgs) -> Self {
         Evolution {
-            population: Vec::n_from_function(algorithm.pop_size(), Cached::generate),
+            population: Vec::n_from_function(algorithm.pop_size(), move || Cached::generate(generate_args.clone())),
             algorithm,
             hall_of_fame,
             stats: Vec::new(),
@@ -128,9 +133,9 @@ where
     /// tracking the best individuals across all resets.
     /// If you find yourself running your program over and over again hoping for a better result,
     /// consider using this feature to combine them all into one run.
-    pub fn with_resets(algorithm: Alg, hall_of_fame: Hof, reset_interval: usize) -> Self {
+    pub fn with_resets(algorithm: Alg, hall_of_fame: Hof, reset_interval: usize, generate_args: T::GenerateArgs) -> Self {
         Evolution {
-            population: Vec::n_from_function(algorithm.pop_size(), Cached::generate),
+            population: Vec::n_from_function(algorithm.pop_size(), move || Cached::generate(generate_args.clone())),
             algorithm,
             hall_of_fame,
             stats: Vec::new(),
@@ -144,8 +149,8 @@ where
     /// Returns an instance of [`Log`] containing the hall of fame and collected statistics for the run.
     ///
     /// [`Log`]: ./struct.Log.html
-    pub fn run_for(self, n_gens: usize) -> Log<T, Hof, Stat> {
-        self.run_for_with(n_gens, |_| {})
+    pub fn run_for(self, n_gens: usize, generate_args: T::GenerateArgs) -> Log<T, Hof, Stat> {
+        self.run_for_with(n_gens, |_| {}, generate_args)
     }
 
     /// Run the algorithm until the provided `predicate` closure returns `true`.
@@ -154,14 +159,14 @@ where
     /// The closure is passed a [`Generation`] instance referring to the most recent generation.
     ///
     /// Returns an instance of [`Log`] containing the hall of fame and collected statistics for the run.
-    ///  
+    ///
     /// [`Generation`]: ./struct.Generation.html
     /// [`Log`]: ./struct.Log.html
-    pub fn run_until<F>(self, predicate: F) -> Log<T, Hof, Stat>
+    pub fn run_until<F>(self, predicate: F, generate_args: T::GenerateArgs) -> Log<T, Hof, Stat>
     where
         F: FnMut(Generation<T, Hof, Stat>) -> bool,
     {
-        self.run_until_with(predicate, |_| {})
+        self.run_until_with(predicate, |_| {}, generate_args)
     }
 
     /// Run the algorithm for `n_gens` generations, calling the provided closure for each generation.
@@ -169,7 +174,7 @@ where
     /// that you want to execute interleaved with the algorithm.
     ///
     /// The closure is passed a [`Generation`] instance referring to the most recent generation.
-    pub fn run_for_with<F>(mut self, n_gens: usize, mut callback: F) -> Log<T, Hof, Stat>
+    pub fn run_for_with<F>(mut self, n_gens: usize, mut callback: F, generate_args: T::GenerateArgs) -> Log<T, Hof, Stat>
     where
         F: FnMut(Generation<T, Hof, Stat>),
     {
@@ -185,7 +190,7 @@ where
             });
             self.stats.push(stat);
 
-            self.reset_or_step(generation);
+            self.reset_or_step(generation, generate_args.clone());
         }
 
         Log {
@@ -203,7 +208,7 @@ where
     ///
     /// [`.run_until()`]: ./struct.Evolution.html#method.run_until
     /// [`.run_for_with()`]: .struct.Evolution.html#method.run_for_with
-    pub fn run_until_with<F, G>(mut self, mut predicate: F, mut callback: G) -> Log<T, Hof, Stat>
+    pub fn run_until_with<F, G>(mut self, mut predicate: F, mut callback: G, generate_args: T::GenerateArgs) -> Log<T, Hof, Stat>
     where
         F: FnMut(Generation<T, Hof, Stat>) -> bool,
         G: FnMut(Generation<T, Hof, Stat>),
@@ -231,7 +236,7 @@ where
 
             generation += 1;
 
-            self.reset_or_step(generation);
+            self.reset_or_step(generation, generate_args.clone());
 
             par_evaluate(&self.population);
             self.hall_of_fame.record(&self.population);
@@ -245,13 +250,19 @@ where
         }
     }
 
-    fn reset(&mut self) {
-        self.population = Vec::n_from_function(self.algorithm.pop_size(), Cached::generate);
+    fn reset(&mut self, generate_args: T::GenerateArgs) {
+        self.population = Vec::n_from_function(self.algorithm.pop_size(), move || {
+            Cached::generate(generate_args.clone())
+        });
     }
 
-    fn reset_or_step(&mut self, generation: usize) {
+    fn reset_or_step(
+        &mut self,
+        generation: usize,
+        generate_args: T::GenerateArgs,
+    ) {
         if self.reset_interval != 0 && generation != 0 && generation % self.reset_interval == 0 {
-            self.reset();
+            self.reset(generate_args);
         } else {
             self.algorithm.step(&mut self.population);
         }
